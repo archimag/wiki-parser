@@ -183,40 +183,7 @@
                                                                :end (car (cdr m))))))))))
                              
               
-  
-  
-;;   (let* ((pos1 (find-header raw-wiki
-;;                             0
-;;                             :start start
-;;                             :end end))
-;;          (pos2 (if pos1
-;;                    (find-header raw-wiki
-;;                                 0
-;;                                 :start (1+ pos1)
-;;                                 :end end))))
-;;     (if pos1
-;;         (if pos2
-;;             (concatenate 'list
-;;                          (subseq raw-wiki start pos1)
-;;                          (list* 'chapter
-;;                                 (nth pos1 raw-wiki)
-;;                                 (make-chapter-tree raw-wiki
-;;                                                    :start (1+ pos1)
-;;                                                    :end pos2))
-;;                          (make-chapter-tree raw-wiki
-;;                                             :start pos2
-;;                                             :end end))
-;;             (cons (subseq raw-wiki start pos1)
-;;                   (list* 'chapter
-;;                          (nth pos1 raw-wiki)
-;;                          (make-chapter-tree raw-wiki
-;;                                             :start (1+ pos1)))))
-;;         raw-wiki)))
-  
-
 ;;(defun post-parse (tree)
-  
-  
 
 (defmethod wiki-parser:parse ((markup (eql :dokuwiki)) obj)
   (make-chapter-tree (call-next-method)))
