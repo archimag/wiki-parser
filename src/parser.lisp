@@ -63,7 +63,9 @@
   (cdr mtable))
 
 (defun mtable-scan (mtable target-string &key (start 0) (end (length target-string)))
-  (multiple-value-bind (pos1 pos2 arr1) (ppcre:scan (mtable-regex mtable)
+  (multiple-value-bind (pos1 pos2 arr1) (ppcre:scan 
+                                                    (ppcre:create-scanner (mtable-regex mtable)
+                                                                          :single-line-mode :MULTI-LINE-MODE-P)
                                                     target-string
                                                     :start start
                                                     :end end)

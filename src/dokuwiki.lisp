@@ -3,7 +3,8 @@
 (defpackage :wiki-parser.dokuwiki
   (:use :cl :iter)
   (:nicknames :dokuwiki)
-  (:import-from :wiki-parser :define-mode :remake-lexer))
+  (:import-from :wiki-parser :define-mode :remake-lexer)
+  (:export :chapter))
 
 (in-package :wiki-parser.dokuwiki)
 
@@ -116,7 +117,8 @@
              "\\n\\t"))
 
 (define-mode code (200 :protected)
-  (:entry "<code>(?=.*</code>)")
+  (:entry "<code>(?=.*</code>)"
+          "<code \\w*>(?=.*</code>)")
   (:exit "</code>"))
 
 (define-mode file (210 :protected)
@@ -131,10 +133,7 @@
 
 ;;; remake lexer
 
-
 (remake-lexer 'toplevel)
-
-
 
 ;;; parse
 
@@ -144,6 +143,16 @@
          (- (length str)
             (position #\= str :test-not #'char-equal :from-end t)
             1))))
+
+(defun header-strim (header)
+    (let* ((str (string-trim #(#\Space #\Tab) (second header)))
+           (n (min (position #\= str :test-not #'char-equal)
+                   (- (length str)
+                      (position #\= str :test-not #'char-equal :from-end t)
+                      1))))
+      (list (car header)
+            (string-trim #(#\Space #\Tab) 
+                         (subseq str n (- (length str) n))))))
 
 (defun find-header (wikidoc min-level &key (start 0) end)
   (position-if #'(lambda (item)
@@ -155,14 +164,18 @@
                :start start
                :end end))
 
+         
+
 (defun make-chapter-tree (raw-wiki &key (start 0) end)
-  (let ((marks nil)
-        (level nil))
+  (if raw-wiki
+      (let ((marks)
+        (level))
+        (unless end
+          (setf end (length raw-wiki)))
     (iter (for item in raw-wiki)
           (for pos from 0)
           (while (or (not end)
                      (< pos end)))
-
           (if (>= pos start)
               (when (and (consp item)
                          (eql (car item) 'header)
@@ -172,18 +185,20 @@
                 (unless level
                   (setf level
                         (header-level item))))))
+    (setf marks (nreverse marks))
     (concatenate 'list
-                 (subseq raw-wiki start (car marks))
-                 (iter (for m on (nreverse marks))
-                       (print m)
-                       (collect (cons 'chapter
-                                      (cons (nth (car m) raw-wiki)
-                                            (make-chapter-tree raw-wiki
-                                                               :start (1+ (car m))
-                                                               :end (car (cdr m))))))))))
+                 (subseq raw-wiki start (or (car marks) end))
+                 (iter (for m on marks)
+                       (collect (list* 'chapter
+                                       (header-strim (nth (car m) raw-wiki))
+                                       (make-chapter-tree raw-wiki
+                                                          :start (1+ (first m))
+                                                          :end (second m)))))))))
                              
               
 ;;(defun post-parse (tree)
 
 (defmethod wiki-parser:parse ((markup (eql :dokuwiki)) obj)
   (make-chapter-tree (call-next-method)))
+
+
