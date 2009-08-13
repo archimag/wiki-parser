@@ -93,14 +93,58 @@
     (setf (symbol-value (find-symbol "*LEXER*" package))
           (make-lexer (find-symbol "TOPLEVEL" package)))))
 
-(defun lexer-parse (mode target-string &key (start 0) (end (length target-string)))
-  (let ((lexer (symbol-value (find-symbol  "*LEXER*" (symbol-package mode))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;; (defun lexer-parse (mode target-string &key (start 0) (end (length target-string)))
+;;   (let ((lexer (symbol-value (find-symbol  "*LEXER*" (symbol-package mode))))
+;;         (curpos start)
+;;         (tokens (list (list mode)))
+;;         (modes (list mode)))
+;;     (iter (while (< curpos end))
+;;           (multiple-value-bind (in-mode pos1 pos2) (mtable-scan (gethash (car modes)
+;;                                                                          lexer)
+;;                                                                 target-string
+;;                                                                 :start curpos
+;;                                                                 :end end)
+;;             (when (or (not in-mode)
+;;                       (> pos1 curpos))
+;;               (push (subseq target-string 
+;;                             curpos 
+;;                             (or pos1 end))
+;;                     (car tokens)))
+            
+;;             (setf curpos (or pos2 end))
+            
+;;             (cond
+;;               ((eql in-mode :exit) (progn (pop modes)
+;;                                           (push (nreverse (pop tokens))
+;;                                                 (car tokens))))
+;;               ((eql in-mode :continue) (progn (push (nreverse (pop tokens))
+;;                                                     (car tokens))
+;;                                               (push (list (car modes))
+;;                                                     tokens)))
+;;               ((and (consp in-mode)
+;;                     (eql (car in-mode) :special)) (push (list (cdr in-mode) 
+;;                                                               (subseq target-string pos1 pos2))
+;;                     (car tokens)))
+;;               ((and (consp in-mode)
+;;                     (eql (car in-mode) :single) (push (cdr in-mode)
+;;                                                       (car tokens))))
+;;               (in-mode (progn (push in-mode modes)
+;;                               (push (list in-mode)
+;;                                     tokens))))))
+;;     (nreverse (pop tokens))))
+
+
+(defun lexer-parse/impl (mode target-string &key (start 0) (end (length target-string)) lexer)
+  (let ((lex (or (symbol-value (find-symbol  "*LEXER*" (symbol-package mode)))
+                 lexer))
         (curpos start)
-        (tokens (list (list mode)))
-        (modes (list mode)))
+        (tokens (list mode))
+        (continue nil))
     (iter (while (< curpos end))
-          (multiple-value-bind (in-mode pos1 pos2) (mtable-scan (gethash (car modes)
-                                                                         lexer)
+          (multiple-value-bind (in-mode pos1 pos2) (mtable-scan (gethash mode lex)
                                                                 target-string
                                                                 :start curpos
                                                                 :end end)
@@ -109,29 +153,42 @@
               (push (subseq target-string 
                             curpos 
                             (or pos1 end))
-                    (car tokens)))
+                    tokens))
             
             (setf curpos (or pos2 end))
-            
+
             (cond
-              ((eql in-mode :exit) (progn (pop modes)
-                                          (push (nreverse (pop tokens))
-                                                (car tokens))))
-              ((eql in-mode :continue) (progn (push (nreverse (pop tokens))
-                                                    (car tokens))
-                                              (push (list (car modes))
-                                                    tokens)))
+              ((eql in-mode :exit) (finish))
+              ((eql in-mode :continue) (progn
+                                         (setf continue t)
+                                         (finish)))
               ((and (consp in-mode)
                     (eql (car in-mode) :special)) (push (list (cdr in-mode) 
                                                               (subseq target-string pos1 pos2))
-                    (car tokens)))
+                                                        tokens))
               ((and (consp in-mode)
                     (eql (car in-mode) :single) (push (cdr in-mode)
-                                                      (car tokens))))
-              (in-mode (progn (push in-mode modes)
-                              (push (list in-mode)
-                                    tokens))))))
-    (nreverse (pop tokens))))
+                                                      tokens)))
+              (in-mode (let ((cont t))
+                         (iter (while cont)
+                               (setf cont nil)
+                               (multiple-value-bind (item pos continue) (lexer-parse/impl in-mode
+                                                                                          target-string
+                                                                                          :start curpos
+                                                                                          :end end
+                                                                                          :lexer lex)
+                                 (push item tokens)
+                                 (setf curpos pos)
+                                 (setf cont continue))))))))
+    (values (nreverse tokens) curpos continue)))
+
+
+
+(defun lexer-parse (mode target-string)
+  (lexer-parse/impl mode target-string))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defgeneric parse (markup-type obj))
 
