@@ -1,5 +1,6 @@
 ;;; dokuwiki.lisp
 
+
 (defpackage :wiki-parser.dokuwiki
   (:use :cl :iter)
   (:nicknames :dokuwiki)
@@ -90,7 +91,7 @@
              "\\n\\t{1,}\\*"))
 
 (define-mode ordered-listblock (10 :container)
-  (:allowed :formatting)
+  (:allowed :formatting :substition :disabled :protected)
   (:entry "\\n {2,}\\-"
           "\\n\\t{1,}\\-")
   (:exit "\\n")
@@ -98,14 +99,21 @@
              "\\n\\t{1,}\\-"))
 
 (define-mode table (60 :container)
-  ;;(:allowed :formatting :substition :disabled :protected)
-  (:allowed nil)
-  (:entry "\\n\\^"
-          "\\n\\|")
-  (:exit "\\n")
-  (:continue "\\n\\^" "\\n\\|"
-             " {2,}" "[\\t ]+"
-             "\\^" "\\|"))
+  (:allowed :table)
+  (:special "\\n[\\^\\|][^\\n]+[\\^\\|][^\\n]*(?=\\n)"))
+
+(define-mode table-header-cell (63 :table)
+  (:allowed :formatting :substition :disabled :protected)
+  (:entry "\\n?\\^(?=[^\\n]*[\\^|\\|])")
+  (:exit)
+  (:exit-border "\\^"
+                "\\|"))
+
+(define-mode table-cell (65 :table)
+  (:allowed :formatting :substition :disabled :protected)
+  (:entry "\\n?\\|(?=[^\\n]*[\\^\\|])")
+  (:exit-border "\\^"
+                "\\|"))
 
 (define-mode unformatted (170 :disabled)
   (:entry "<nowiki>(?=.*</nowiki>)")

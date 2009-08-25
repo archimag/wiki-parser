@@ -32,6 +32,15 @@
 (defun make-mtable (mode)
   (let ((regexs nil)
         (modes nil))
+    (iter (for exit in (get mode :continue))
+          (push :continue modes)
+          (push (ppcre:parse-string exit) regexs))
+    (iter (for exit in (get mode :exit))
+          (push :exit modes)
+          (push (ppcre:parse-string exit) regexs))
+    (iter (for reg in (get mode :exit-border))
+          (push :exit-border modes)
+          (push (ppcre:parse-string reg) regexs))
     (iter (for amode in (allowed-modes mode))
           (iter (for entry in (get amode :entry))
                 (push amode modes)
@@ -42,12 +51,6 @@
           (iter (for single in (get amode :single))
                 (push (cons :single amode) modes)
                 (push (ppcre:parse-string single) regexs)))
-    (iter (for exit in (get mode :continue))
-          (push :continue modes)
-          (push (ppcre:parse-string exit) regexs))
-    (iter (for exit in (get mode :exit))
-          (push :exit modes)
-          (push (ppcre:parse-string exit) regexs))
     (cons (if (cdr regexs)
               (cons :alternation
                     (iter (for reg in (nreverse regexs))
@@ -95,48 +98,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
-;; (defun lexer-parse (mode target-string &key (start 0) (end (length target-string)))
-;;   (let ((lexer (symbol-value (find-symbol  "*LEXER*" (symbol-package mode))))
-;;         (curpos start)
-;;         (tokens (list (list mode)))
-;;         (modes (list mode)))
-;;     (iter (while (< curpos end))
-;;           (multiple-value-bind (in-mode pos1 pos2) (mtable-scan (gethash (car modes)
-;;                                                                          lexer)
-;;                                                                 target-string
-;;                                                                 :start curpos
-;;                                                                 :end end)
-;;             (when (or (not in-mode)
-;;                       (> pos1 curpos))
-;;               (push (subseq target-string 
-;;                             curpos 
-;;                             (or pos1 end))
-;;                     (car tokens)))
-            
-;;             (setf curpos (or pos2 end))
-            
-;;             (cond
-;;               ((eql in-mode :exit) (progn (pop modes)
-;;                                           (push (nreverse (pop tokens))
-;;                                                 (car tokens))))
-;;               ((eql in-mode :continue) (progn (push (nreverse (pop tokens))
-;;                                                     (car tokens))
-;;                                               (push (list (car modes))
-;;                                                     tokens)))
-;;               ((and (consp in-mode)
-;;                     (eql (car in-mode) :special)) (push (list (cdr in-mode) 
-;;                                                               (subseq target-string pos1 pos2))
-;;                     (car tokens)))
-;;               ((and (consp in-mode)
-;;                     (eql (car in-mode) :single) (push (cdr in-mode)
-;;                                                       (car tokens))))
-;;               (in-mode (progn (push in-mode modes)
-;;                               (push (list in-mode)
-;;                                     tokens))))))
-;;     (nreverse (pop tokens))))
-
-
 (defun lexer-parse/impl (mode target-string &key (start 0) (end (length target-string)) lexer)
   (let ((lex (or (symbol-value (find-symbol  "*LEXER*" (symbol-package mode)))
                  lexer))
@@ -159,12 +120,22 @@
 
             (cond
               ((eql in-mode :exit) (finish))
+              ((eql in-mode :exit-border) (progn
+                                            (setf curpos pos1)
+                                            (finish)))
               ((eql in-mode :continue) (progn
                                          (setf continue t)
                                          (finish)))
               ((and (consp in-mode)
-                    (eql (car in-mode) :special)) (push (list (cdr in-mode) 
-                                                              (subseq target-string pos1 pos2))
+                    (eql (car in-mode) :special)) (push (if (equal (mtable-regex (gethash (cdr in-mode) lex))
+                                                                   '(:register nil))
+                                                            (list (cdr in-mode)
+                                                                  (subseq target-string pos1 pos2))
+                                                            (lexer-parse/impl (cdr in-mode)
+                                                                              target-string
+                                                                              :start pos1
+                                                                              :end pos2
+                                                                              :lexer lex))
                                                         tokens))
               ((and (consp in-mode)
                     (eql (car in-mode) :single) (push (cdr in-mode)
@@ -197,7 +168,10 @@
 
 (defmethod parse (markup-type (string string))
   (lexer-parse (find-symbol "TOPLEVEL" markup-type)
-               (concatenate 'string #(#\Newline) string)))
+               (concatenate 'string
+                            #(#\Newline)
+                            string
+                            #(#\Newline))))
   
 
 (defmacro define-mode (name (sort &optional category) &rest args)
