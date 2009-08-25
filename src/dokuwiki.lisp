@@ -142,8 +142,14 @@
 
 (define-mode external-link (330 :substition)
   (:entry "\\[\\[(?=.*\\]\\])")
-  (:special "(?:ht|f)tp(?:s?)://[0-9a-zA-Z](?:[-.\\w]*[0-9a-zA-Z])*(?::(?:0-9)*)*(?:/?)(?:[a-zA-Z0-9\\-\\.\\?\\,/\\+&%\\$#]*)?")
+  (:special "(?:ht|f)tp(?:s?)://[0-9a-zA-Z](?:[-.\\w]*[0-9a-zA-Z])*(?::(?:0-9)*)*(?:/?)(?:[a-zA-Z0-9\\-\\.\\?\\,/\\+&%\\$#\\*]*)?")
   (:exit "\\]\\]"))
+
+(define-mode em-dash (340 :substition)
+  (:single "---"))
+
+(define-mode en-dash (350 :substition)
+  (:single "--"))
 
 
 ;;; remake lexer
@@ -228,10 +234,13 @@
   (let ((result nil))
     (flet ((paragraph-part-p (item)
              (or (stringp item)
+                 (and (symbolp item)
+                      (eql (gethash item *symbols-category*)
+                           :substition))
                  (and (consp item)
-                      (eql (gethash (car item)
-                                    *symbols-category*)
-                           :formatting))))
+                      (find (gethash (car item)
+                                     *symbols-category*)
+                            '(:formatting :substition)))))
            (append-to-last-paragraph (item)
              (nconc (car result)
                     (list item))))
