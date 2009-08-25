@@ -6,10 +6,10 @@
 (defun symbols-category-hash (symbol)
   (symbol-value (find-symbol  "*SYMBOLS-CATEGORY*" (symbol-package symbol))))
 
-(defun modes-by-category (mode category)
-  (iter (for (mode mode-category) in-hashtable *symbols-category*)
-        (when (eql mode-category category)
-          (collect mode))))
+;; (defun modes-by-category (mode category)
+;;   (iter (for (mode mode-category) in-hashtable *symbols-category*)
+;;         (when (eql mode-category category)
+;;           (collect mode))))
 
 
 (defun allowed-modes (mode)
@@ -197,7 +197,7 @@
 
 (defmethod parse (markup-type (string string))
   (lexer-parse (find-symbol "TOPLEVEL" markup-type)
-               string))
+               (concatenate 'string #(#\Newline) string)))
   
 
 (defmacro define-mode (name (sort &optional category) &rest args)
