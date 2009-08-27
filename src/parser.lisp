@@ -156,7 +156,8 @@
 
 
 (defun lexer-parse (mode target-string)
-  (lexer-parse/impl mode target-string))
+  (lexer-parse/impl mode
+                    (remove #\Return target-string)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
