@@ -148,10 +148,12 @@
   (:exit "\\n")
   (:continue "\\n>{1,}"))
 
-(define-mode external-link (330 :substition)
+(define-mode internal-link (300 :substition)
   (:entry "\\[\\[(?=.*\\]\\])")
-  (:special "(?:ht|f)tp(?:s?)://[0-9a-zA-Z](?:[-.\\w]*[0-9a-zA-Z])*(?::(?:0-9)*)*(?:/?)(?:[a-zA-Z0-9\\-\\.\\?\\,/\\+&%\\$#\\*]*)?")
   (:exit "\\]\\]"))
+
+(define-mode external-link (330 :substition)
+  (:special "(?:ht|f)tp(?:s?)://[0-9a-zA-Z](?:[-.\\w]*[0-9a-zA-Z])*(?::(?:0-9)*)*(?:/?)(?:[a-zA-Z0-9\\-\\.\\?\\,/\\+&%\\$#\\*]*)?"))
 
 (define-mode em-dash (340 :substition)
   (:single "---"))
