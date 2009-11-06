@@ -148,7 +148,14 @@
                                                                                           :start curpos
                                                                                           :end end
                                                                                           :lexer lex)
-                                 (push item tokens)
+                                 (push (let ((entry-attribute-parser (car (get in-mode :entry-attribute-parser))))
+                                         (if entry-attribute-parser
+                                             (list* (car item)
+                                                    (funcall entry-attribute-parser
+                                                             (subseq target-string pos1 pos2))
+                                                    (cdr item)
+                                                    item)))
+                                       tokens)
                                  (setf curpos pos)
                                  (setf cont continue))))))))
     (values (nreverse tokens) curpos continue)))
