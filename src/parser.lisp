@@ -98,6 +98,14 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun apply-post-handler (expr)
+  (let ((post-handler (if (and (consp expr)
+                               (symbolp (car expr)))
+                          (car (get (car expr) :post-handler)))))
+    (if post-handler
+        (funcall post-handler expr)
+        expr)))
+
 (defun lexer-parse/impl (mode target-string &key (start 0) (end (length target-string)) lexer)
   (let ((lex (or (symbol-value (find-symbol  "*LEXER*" (symbol-package mode)))
                  lexer))
@@ -127,15 +135,15 @@
                                          (setf continue t)
                                          (finish)))
               ((and (consp in-mode)
-                    (eql (car in-mode) :special)) (push (if (equal (mtable-regex (gethash (cdr in-mode) lex))
-                                                                   '(:register nil))
-                                                            (list (cdr in-mode)
-                                                                  (subseq target-string pos1 pos2))
-                                                            (lexer-parse/impl (cdr in-mode)
-                                                                              target-string
-                                                                              :start pos1
-                                                                              :end pos2
-                                                                              :lexer lex))
+                    (eql (car in-mode) :special)) (push (apply-post-handler (if (equal (mtable-regex (gethash (cdr in-mode) lex))
+                                                                                       '(:register nil))
+                                                                                (list (cdr in-mode)
+                                                                                      (subseq target-string pos1 pos2))
+                                                                                (lexer-parse/impl (cdr in-mode)
+                                                                                                  target-string
+                                                                                                  :start pos1
+                                                                                                  :end pos2
+                                                                                                  :lexer lex)))
                                                         tokens))
               ((and (consp in-mode)
                     (eql (car in-mode) :single) (push (cdr in-mode)
@@ -148,17 +156,20 @@
                                                                                           :start curpos
                                                                                           :end end
                                                                                           :lexer lex)
-                                 (push (let ((entry-attribute-parser (car (get in-mode :entry-attribute-parser))))
-                                         (if entry-attribute-parser
-                                             (list* (car item)
-                                                    (funcall entry-attribute-parser
-                                                             (subseq target-string pos1 pos2))
-                                                    (cdr item)
-                                                    item)))
+                                 (push (apply-post-handler
+                                        (let ((entry-attribute-parser (car (get in-mode :entry-attribute-parser))))
+                                          (if entry-attribute-parser
+                                              (list* (car item)
+                                                     (funcall entry-attribute-parser
+                                                              (subseq target-string pos1 curpos))
+                                                     (cdr item))
+                                              item)))
                                        tokens)
                                  (setf curpos pos)
                                  (setf cont continue))))))))
-    (values (nreverse tokens) curpos continue)))
+      (values (nreverse tokens)
+              curpos
+              continue)))
 
 
 
