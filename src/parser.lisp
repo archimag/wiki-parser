@@ -98,6 +98,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define-condition bad-element-condition (error) ())
+
 (defun apply-post-handler (expr)
   (let ((post-handler (if (and (consp expr)
                                (symbolp (car expr)))
@@ -125,48 +127,59 @@
                     tokens))
             
             (setf curpos (or pos2 end))
-
+            
             (cond
-              ((eql in-mode :exit) (finish))
-              ((eql in-mode :exit-border) (progn
-                                            (setf curpos pos1)
-                                            (finish)))
-              ((eql in-mode :continue) (progn
-                                         (setf continue t)
-                                         (finish)))
-              ((and (consp in-mode)
-                    (eql (car in-mode) :special)) (push (apply-post-handler (if (equal (mtable-regex (gethash (cdr in-mode) lex))
-                                                                                       '(:register nil))
-                                                                                (list (cdr in-mode)
-                                                                                      (subseq target-string pos1 pos2))
-                                                                                (lexer-parse/impl (cdr in-mode)
-                                                                                                  target-string
-                                                                                                  :start pos1
-                                                                                                  :end pos2
-                                                                                                  :lexer lex)))
-                                                        tokens))
-              ((and (consp in-mode)
-                    (eql (car in-mode) :single) (push (cdr in-mode)
-                                                      tokens)))
-              (in-mode (let ((cont t))
-                         (iter (while cont)
-                               (setf cont nil)
-                               (multiple-value-bind (item pos continue) (lexer-parse/impl in-mode
-                                                                                          target-string
-                                                                                          :start curpos
-                                                                                          :end end
-                                                                                          :lexer lex)
-                                 (push (apply-post-handler
-                                        (let ((entry-attribute-parser (car (get in-mode :entry-attribute-parser))))
-                                          (if entry-attribute-parser
-                                              (list* (car item)
-                                                     (funcall entry-attribute-parser
-                                                              (subseq target-string pos1 curpos))
-                                                     (cdr item))
-                                              item)))
-                                       tokens)
-                                 (setf curpos pos)
-                                 (setf cont continue))))))))
+                  ((eql in-mode :exit) (finish))
+                  ((eql in-mode :exit-border) (progn
+                                                (setf curpos pos1)
+                                                (finish)))
+                  ((eql in-mode :continue) (progn
+                                             (setf continue t)
+                                             (finish)))
+                  ((and (consp in-mode)
+                        (eql (car in-mode) :special)) (push (handler-case
+                                                                (apply-post-handler (if (equal (mtable-regex (gethash (cdr in-mode) 
+                                                                                                                      lex))
+                                                                                               '(:register nil))
+                                                                                        (list (cdr in-mode)
+                                                                                              (subseq target-string 
+                                                                                                      pos1 
+                                                                                                      pos2))
+                                                                                        (lexer-parse/impl (cdr in-mode)
+                                                                                                          target-string
+                                                                                                          :start pos1
+                                                                                                          :end pos2
+                                                                                                          :lexer lex)))
+                                                              (bad-element-condition () (subseq target-string 
+                                                                                                pos1 
+                                                                                                pos2)))
+                        tokens))
+                  ((and (consp in-mode)
+                        (eql (car in-mode) :single) (push (cdr in-mode)
+                                                          tokens)))
+                  (in-mode (let ((cont t))
+                             (iter (while cont)
+                                   (setf cont nil)
+                                   (multiple-value-bind (item pos continue) (lexer-parse/impl in-mode
+                                                                                              target-string
+                                                                                              :start curpos
+                                                                                              :end end
+                                                                                              :lexer lex)
+                                     (push (handler-case
+                                               (apply-post-handler
+                                                (let ((entry-attribute-parser (car (get in-mode :entry-attribute-parser))))
+                                                  (if entry-attribute-parser
+                                                      (list* (car item)
+                                                             (funcall entry-attribute-parser
+                                                                      (subseq target-string pos1 curpos))
+                                                             (cdr item))
+                                                      item)))
+                                             (bad-element-condition () (subseq target-string 
+                                                                               pos1
+                                                                               pos)))
+                                           tokens)
+                                     (setf curpos pos)
+                                     (setf cont continue))))))))
       (values (nreverse tokens)
               curpos
               continue)))

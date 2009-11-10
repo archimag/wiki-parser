@@ -5,4 +5,5 @@
   (:export #:parse
            #:remake-lexer
            #:defwiki
-           #:define-mode))
+           #:define-mode
+           #:bad-element-condition))
