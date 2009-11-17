@@ -1,14 +1,19 @@
-;;; dokuwiki.lisp
+;;;; dokuwiki.lisp
+;;;;
+;;;; This file is part of the wiki-parser library, released under Lisp-LGPL.
+;;;; See file COPYING for details.
+;;;;
+;;;; Author: Moskvitin Andrey <archimag@gmail.com>
 
 
-(defpackage :wiki-parser.dokuwiki
-  (:use :cl :iter)
-  (:nicknames :dokuwiki)
-  (:import-from :wiki-parser :define-mode :remake-lexer)
+(defpackage #:wiki-parser.dokuwiki
+  (:use #:cl #:iter)
+  (:nicknames #:dokuwiki)
+  (:import-from #:wiki-parser #:define-mode #:remake-lexer)
   (:export #:chapter
            #:paragraph))
 
-(in-package :wiki-parser.dokuwiki)
+(in-package #:wiki-parser.dokuwiki)
 
 (defparameter *lexer* nil)
 

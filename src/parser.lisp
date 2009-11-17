@@ -1,6 +1,12 @@
-;;; parser.lisp
+;;;; parser.lisp
+;;;;
+;;;; This file is part of the wiki-parser library, released under Lisp-LGPL.
+;;;; See file COPYING for details.
+;;;;
+;;;; Author: Moskvitin Andrey <archimag@gmail.com>
 
-(in-package :wiki-parser)
+
+(in-package #:wiki-parser)
 
 
 (defun symbols-category-hash (symbol)
