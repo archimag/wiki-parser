@@ -43,7 +43,8 @@
   (:single "~~NOCACHE~~"))
 
 (define-mode linebreak (140 :substition)
-  (:single "\\\\\\\\(?=\\s)"))
+  (:single "\\\\\\\\"))
+  ;;(:single "\\\\\\\\(?=\\s)"))
 
 (define-mode eol (370 :paragraphs)
   (:single "\\n"))
@@ -156,6 +157,10 @@
 (define-mode internal-link (300 :substition)
   (:entry "\\[\\[(?=.*\\]\\])")
   (:exit "\\]\\]"))
+
+(define-mode media (320 :substition)
+  (:entry "{{(?=.*}})")
+  (:exit "}}"))
 
 (define-mode external-link (330 :substition)
   (:special "(?:ht|f)tp(?:s?)://[0-9a-zA-Z](?:[-.\\w]*[0-9a-zA-Z])*(?::(?:0-9)*)*(?:/?)(?:[a-zA-Z0-9\\-\\.\\?\\,/\\+&%\\$#\\*]*)?"))
