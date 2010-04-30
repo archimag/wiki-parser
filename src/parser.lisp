@@ -8,21 +8,30 @@
 
 (in-package #:wiki-parser)
 
+(defparameter +lexer-symbol+ "*LEXER*")
+(defparameter +symbols-category-symbol+ "*SYMBOLS-CATEGORY*")
+(defparameter +toplevel-symbol+ "TOPLEVEL")
+
+(defun string-symbol-value (string &optional (package *package*))
+  (symbol-value (find-symbol string package)))
 
 (defun symbols-category-hash (symbol)
-  (symbol-value (find-symbol  "*SYMBOLS-CATEGORY*" (symbol-package symbol))))
+  (string-symbol-value +symbols-category-symbol+
+                       (symbol-package symbol)))
 
 (defun allowed-modes (mode)
   (labels ((expand-modes (modes)
              (cond
                ((null modes) nil)
-               ((keywordp (car modes)) (concatenate 'list
-                                                    (iter (for (key value) in-hashtable (symbols-category-hash mode))
-                                                          (when (eql value (car modes))
-                                                            (collect key)))
-                                                    (expand-modes (cdr modes))))
-               ((symbolp (car modes)) (cons (car modes)
-                                            (expand-modes (cdr modes))))
+               ((keywordp (car modes))
+                (concatenate 'list
+                             (iter (for (key value) in-hashtable (symbols-category-hash mode))
+                                   (when (eql value (car modes))
+                                     (collect key)))
+                             (expand-modes (cdr modes))))
+               ((symbolp (car modes))
+                (cons (car modes)
+                      (expand-modes (cdr modes))))
                (t (error "bad mode: ~A" (car modes))))))
     (sort (set-difference (expand-modes (get mode :allowed))
                           (expand-modes (get mode :not-allowed)))
@@ -54,8 +63,7 @@
     (cons (if (cdr regexs)
               (cons :alternation
                     (iter (for reg in (nreverse regexs))
-                          (collect (list :register
-                                         reg))))
+                          (collect (list :register reg))))
               (list :register (car regexs)))
           (coerce (nreverse modes) 'vector))))
 
@@ -66,12 +74,12 @@
   (cdr mtable))
 
 (defun mtable-scan (mtable target-string &key (start 0) (end (length target-string)))
-  (multiple-value-bind (pos1 pos2 arr1) (ppcre:scan 
-                                                    (ppcre:create-scanner (mtable-regex mtable)
-                                                                          :single-line-mode :MULTI-LINE-MODE-P)
-                                                    target-string
-                                                    :start start
-                                                    :end end)
+  (multiple-value-bind (pos1 pos2 arr1) 
+      (ppcre:scan (ppcre:create-scanner (mtable-regex mtable)
+                                        :single-line-mode :MULTI-LINE-MODE-P)
+                  target-string
+                  :start start
+                  :end end)
     (if pos1
         (let ((index (position-if #'identity arr1)))
           (values (aref (mtable-modes mtable)
@@ -93,8 +101,8 @@
 
 (defun remake-lexer (mode)
   (let ((package (symbol-package mode)))
-    (setf (symbol-value (find-symbol "*LEXER*" package))
-          (make-lexer (find-symbol "TOPLEVEL" package)))))
+    (setf (symbol-value (find-symbol +lexer-symbol+ package))
+          (make-lexer (find-symbol +toplevel-symbol+ package)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -109,7 +117,8 @@
         expr)))
 
 (defun lexer-parse/impl (mode target-string &key (start 0) (end (length target-string)) lexer)
-  (let ((lex (or (symbol-value (find-symbol  "*LEXER*" (symbol-package mode)))
+  (let ((lex (or (string-symbol-value +lexer-symbol+
+                                      (symbol-package mode))
                  lexer))
         (curpos start)
         (tokens (list mode))
@@ -200,12 +209,23 @@
   (parse markup-type (alexandria:read-file-into-string path)))
 
 (defmethod parse (markup-type (string string))
-  (lexer-parse (find-symbol "TOPLEVEL" markup-type)
-               (concatenate 'string
-                            #(#\Newline)
-                            string
-                            #(#\Newline))))
-  
+  (lexer-parse (find-symbol +toplevel-symbol+ markup-type)
+               string))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; define parser macros
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmacro define-parser (name &rest options)
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
+     (let ((*package* (defpackage ,name
+                        ,@options
+                        (:import-from #:wiki-parser #:define-toplevel-mode #:define-mode #:remake-lexer #:init-parser))))
+       (flet ((defparam (name &optional value)
+                (eval `(defparameter ,(intern name) ,value))))
+         (defparam +lexer-symbol+ nil)
+         (defparam +symbols-category-symbol+ (make-hash-table))
+         *package*))))  
 
 (defmacro define-mode (name (sort &optional category) &rest args)
   `(progn
@@ -216,6 +236,18 @@
            ,category)
      (iter (for prop in ',args)
            (setf (get ',name (car prop))
-                 (cdr prop)))
+                 (if (and (eql (car prop) :post-handler)
+                          (third prop))
+                     (list (eval `(lambda ,@(cdr prop))))
+                     (cdr prop))))
      (eval-when (:execute)
        (remake-lexer ',name))))
+
+(defmacro define-toplevel-mode (&rest options)
+  (let ((toplevel (intern +toplevel-symbol+ *package*)))
+  `(define-mode ,toplevel (0)
+     ,@options)))
+
+
+(defmacro init-parser ()
+  `(remake-lexer (find-symbol +toplevel-symbol+ *package*)))

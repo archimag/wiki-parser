@@ -10,6 +10,8 @@
   (:use #:cl #:iter)
   (:export #:parse
            #:remake-lexer
-           #:defwiki
+           #:define-parser
+           #:define-toplevel-mode
            #:define-mode
-           #:bad-element-condition))
+           #:bad-element-condition
+           #:init-parser))

@@ -281,6 +281,11 @@
 ;;;; wiki-parser:parse
 
 (defmethod wiki-parser:parse ((markup (eql :dokuwiki)) (obj string))
-  (make-chapter-tree (make-paragraphs (union-same-items (call-next-method)))))
-
-
+  (make-chapter-tree
+   (make-paragraphs
+    (union-same-items
+     (call-next-method markup
+                       (concatenate 'string
+                                    #(#\Newline)
+                                    obj
+                                    #(#\Newline)))))))
