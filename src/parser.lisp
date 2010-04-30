@@ -12,12 +12,6 @@
 (defun symbols-category-hash (symbol)
   (symbol-value (find-symbol  "*SYMBOLS-CATEGORY*" (symbol-package symbol))))
 
-;; (defun modes-by-category (mode category)
-;;   (iter (for (mode mode-category) in-hashtable *symbols-category*)
-;;         (when (eql mode-category category)
-;;           (collect mode))))
-
-
 (defun allowed-modes (mode)
   (labels ((expand-modes (modes)
              (cond
