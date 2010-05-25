@@ -284,8 +284,4 @@
   (make-chapter-tree
    (make-paragraphs
     (union-same-items
-     (call-next-method markup
-                       (concatenate 'string
-                                    #(#\Newline)
-                                    obj
-                                    #(#\Newline)))))))
+     (call-next-method)))))
