@@ -16,8 +16,7 @@
   :components ((:module :src
                         :components ((:file "packages")
                                      (:file "parser" :depends-on ("packages"))
-                                     (:file "dokuwiki" :depends-on ("parser"))
-                                     (:file "re-structured-text" :depends-on ("parser"))))))
+                                     (:file "dokuwiki" :depends-on ("parser"))))))
 
 (defmethod perform ((o test-op) (c (eql (find-system 'wiki-parser))))
   (operate 'load-op 'wiki-parser-test)
@@ -26,8 +25,7 @@
 (defsystem wiki-parser-test
   :depends-on (#:wiki-parser #:lift)
   :components ((:module "t"
-                        :components ((:file "core")
-                                     (:file "rst" :depends-on ("core"))))))
+                        :components ((:file "core")))))
 
 (defmethod perform ((o test-op) (c (eql (find-system 'wiki-parser-test))))
   (operate 'load-op 'wiki-parser-test )
