@@ -38,28 +38,34 @@
           #'<
           :key #'(lambda (s) (get s :sort)))))
 
+(defun parse-regex (re)
+  (cond
+    ((stringp re) (ppcre:parse-string re))
+    ((consp re) re)
+    (t (error "Bad type of regular expressiong: ~A" re))))
+
 (defun make-mtable (mode)
   (let ((regexs nil)
         (modes nil))
     (iter (for exit in (get mode :continue))
           (push :continue modes)
-          (push (ppcre:parse-string exit) regexs))
+          (push (parse-regex exit) regexs))
     (iter (for exit in (get mode :exit))
           (push :exit modes)
-          (push (ppcre:parse-string exit) regexs))
+          (push (parse-regex exit) regexs))
     (iter (for reg in (get mode :exit-border))
           (push :exit-border modes)
-          (push (ppcre:parse-string reg) regexs))
+          (push (parse-regex reg) regexs))
     (iter (for amode in (allowed-modes mode))
           (iter (for entry in (get amode :entry))
                 (push amode modes)
-                (push (ppcre:parse-string entry) regexs))
+                (push (parse-regex entry) regexs))
           (iter (for special in (get amode :special))
                 (push (cons :special amode) modes)
-                (push (ppcre:parse-string special) regexs))
+                (push (parse-regex special) regexs))
           (iter (for single in (get amode :single))
                 (push (cons :single amode) modes)
-                (push (ppcre:parse-string single) regexs)))
+                (push (parse-regex single) regexs)))
     (cons (if (cdr regexs)
               (cons :alternation
                     (iter (for reg in (nreverse regexs))
@@ -198,7 +204,9 @@
 
 (defun lexer-parse (mode target-string)
   (lexer-parse/impl mode
-                    (remove #\Return target-string)))
+                    (format nil
+                            "~%~A~%"
+                            (remove #\Return target-string))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -236,7 +244,7 @@
            ,category)
      (iter (for prop in ',args)
            (setf (get ',name (car prop))
-                 (if (and (eql (car prop) :post-handler)
+                 (if (and (member (car prop) '(:post-handler :entry-attribute-parser))
                           (third prop))
                      (list (eval `(lambda ,@(cdr prop))))
                      (cdr prop))))
